@@ -71,7 +71,7 @@ void initGPIO(void){
 void initTIM14(void){
     RCC ->APB1ENR |= RCC_APB1ENR_TIM14EN;
     TIM14 -> PSC = 1;
-    TIM14 -> ARR = 9999;
+    TIM14 -> ARR = 39999;
     TIM14 -> DIER |= TIM_DIER_UIE; //Enable interrupts
     TIM14 -> CR1 &= ~(TIM_CR1_CEN);
     NVIC_EnableIRQ(TIM14_IRQn);   
