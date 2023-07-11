@@ -24,7 +24,8 @@ typedef uint8_t flag_t;
 //====================================================================
 // GLOBAL VARIABLES
 //====================================================================
-char time[] = ">     -    -  - -"; //char representation of time
+char line1[] = ">     -    -  - -";
+char line2[] = "                 "; 
 uint8_t minutes = 0, seconds = 0, hundredths = 0;
 flag_t startFlag = FALSE, lapFlag = FALSE, stopFlag = FALSE, resetFlag = TRUE;
 //====================================================================
@@ -36,6 +37,7 @@ void initGPIO(void);
 void initTIM14(void);
 void TIM14_IRQHandler(void);
 void convert2BCDASCII(const uint8_t min, const uint8_t sec, const uint8_t hund, char* resultPtr);
+void dodge(char* top, char* bot);
 //====================================================================
 // MAIN FUNCTION
 //====================================================================
@@ -99,9 +101,9 @@ void display(void){
         minutes = 0;
         //convert2BCDASCII(minutes, seconds, hundredths, time);
         lcd_command(CURSOR_HOME);
-        lcd_putstring("Button Game");
+        lcd_putstring("Button Game     ");
         lcd_command(LINE_TWO);
-        lcd_putstring("Press SW0...");
+        lcd_putstring("Press SW0...     ");
     }
     if (startFlag && lapFlag){ //Show current time. Keep counting in background
         GPIOB ->ODR = 0b0010;
@@ -110,10 +112,11 @@ void display(void){
     else if (startFlag && stopFlag){ //Show current time and stop counting
         GPIOB->ODR = 0b0100;
         TIM14 -> CR1 &= ~(TIM_CR1_CEN); //Stop timer
+        dodge(line1, line2);
         lcd_command(CLEAR);
-        lcd_putstring("Time");
+        lcd_putstring(line1);
         lcd_command(LINE_TWO);
-        lcd_putstring(time);
+        lcd_putstring(line2);
         delay(10000);
     }
     else if (startFlag){ //Start counter from current value. Show values as they increase
@@ -121,9 +124,9 @@ void display(void){
         TIM14 -> CR1 |= TIM_CR1_CEN; //Start timer
         //convert2BCDASCII(minutes, seconds, hundredths, time);
         lcd_command(CLEAR);
-        lcd_putstring("Time");
+        lcd_putstring(line1);
         lcd_command(LINE_TWO);
-        lcd_putstring(time);
+        lcd_putstring(line2);
         delay(10000);
     }
 }
@@ -154,6 +157,17 @@ void checkPB(void){
         resetFlag = TRUE;
     }
 }
+
+void dodge(char* top, char* bot) {
+    if (top[0] == '>') {
+        top[0] = ' ';
+        bot[0] = '>';
+    } else if (bot[0] == '>') {
+        top[0] = '>';
+        bot[0] = ' ';
+    }
+}
+
 /*4-bit BCD to ASCII conversion*/
 void convert2BCDASCII(const uint8_t min, const uint8_t sec, const uint8_t hund, char* resultPtr){
     //Store digits in order: {min1, min0, sec1, sec0, hun1, hun0}
