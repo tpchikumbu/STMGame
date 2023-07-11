@@ -24,9 +24,9 @@ typedef uint8_t flag_t;
 //====================================================================
 // GLOBAL VARIABLES
 //====================================================================
-char line1[] = ">     -    -  - -";
-char line2[] = "                 "; 
-uint8_t minutes = 0, seconds = 0, hundredths = 0;
+char line1[] = ">     -     -    ";
+char line2[] = "   -    -        "; 
+uint8_t minutes = 0, seconds = 0, hundredths = 0, ref_time = 90; spawn_rate = 5;
 flag_t startFlag = FALSE, lapFlag = FALSE, stopFlag = FALSE, resetFlag = TRUE;
 //====================================================================
 // FUNCTION DECLARATIONS
@@ -38,6 +38,7 @@ void initTIM14(void);
 void TIM14_IRQHandler(void);
 void convert2BCDASCII(const uint8_t min, const uint8_t sec, const uint8_t hund, char* resultPtr);
 void dodge(char* top, char* bot);
+void refresh(char* top, char* bot);
 //====================================================================
 // MAIN FUNCTION
 //====================================================================
@@ -70,7 +71,7 @@ void initGPIO(void){
 void initTIM14(void){
     RCC ->APB1ENR |= RCC_APB1ENR_TIM14EN;
     TIM14 -> PSC = 1;
-    TIM14 -> ARR = 39999;
+    TIM14 -> ARR = 9999;
     TIM14 -> DIER |= TIM_DIER_UIE; //Enable interrupts
     TIM14 -> CR1 &= ~(TIM_CR1_CEN);
     NVIC_EnableIRQ(TIM14_IRQn);   
@@ -112,22 +113,24 @@ void display(void){
     else if (startFlag && stopFlag){ //Show current time and stop counting
         GPIOB->ODR = 0b0100;
         TIM14 -> CR1 &= ~(TIM_CR1_CEN); //Stop timer
-        dodge(line1, line2);
+        //add moving obstacles
         lcd_command(CLEAR);
         lcd_putstring(line1);
         lcd_command(LINE_TWO);
         lcd_putstring(line2);
-        delay(10000);
+        delay(12000);
     }
     else if (startFlag){ //Start counter from current value. Show values as they increase
         GPIOB ->ODR = 0b0001;
         TIM14 -> CR1 |= TIM_CR1_CEN; //Start timer
-        //convert2BCDASCII(minutes, seconds, hundredths, time);
+        if (hundredths >= ref_time){
+            refresh(line1, line2);
+        }
         lcd_command(CLEAR);
         lcd_putstring(line1);
         lcd_command(LINE_TWO);
         lcd_putstring(line2);
-        delay(10000);
+        delay(12000);
     }
 }
 void checkPB(void){
@@ -138,11 +141,12 @@ void checkPB(void){
         lapFlag = FALSE;
         resetFlag = FALSE;
     }
-    else if (state == 0b0010) { //SW1 to lap
-        startFlag = TRUE;
-        stopFlag = FALSE;
-        lapFlag = TRUE;
-        resetFlag = FALSE;
+    else if (state == 0b0010) { //SW1 to switch lines
+        dodge(line1, line2);
+        //startFlag = TRUE;
+        //stopFlag = FALSE;
+        //lapFlag = TRUE;
+        //resetFlag = FALSE;
     }
     else if (state == 0b0100) { //SW2 to stop
         startFlag = TRUE;
@@ -166,6 +170,32 @@ void dodge(char* top, char* bot) {
         top[0] = '>';
         bot[0] = ' ';
     }
+}
+
+void refresh(char* top, char* bot){
+    for (int8_t i = 0; i < 14; i++){
+        if (top[i] != '>') {
+            top[i] = top[i+1];
+        }
+        if (bot[i] != '>') {
+            bot[i] = bot[i+1];
+        }
+    }
+    int spawn = seconds%spawn_rate; 
+    if (spawn == 0) {
+        if (top[0] == '>') {
+            top[14] = '-';
+            bot[14] = ' ';
+        }
+        else {
+            top[14] = ' ';
+            bot[14] = '-';
+        }
+    } else {
+        top[14] = ' ';
+        bot[14] = ' ';
+    }
+    
 }
 
 /*4-bit BCD to ASCII conversion*/
